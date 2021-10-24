@@ -20,7 +20,7 @@ let app_data = [],
 
 // GET USERS COUNTRY CODE
 let country_code;
-if (geoplugin_countryCode()) {
+if (typeof geoplugin_countryCode !== 'undefined') {
   country_code = geoplugin_countryCode();
 } else {
   country_code = 'US';
