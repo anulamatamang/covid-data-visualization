@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>WorldMap</title>
+    <link rel="stylesheet" href="./resources/css/worldmap.css">
+    <script src="https://d3js.org/d3.v4.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+    <script src="https://d3js.org/d3-geo-projection.v2.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/2.24.0/d3-legend.js"></script>
+   <style>
+     path{
+       stroke: red;
+       stroke-width:0.2 ;
+     }
+     #tooltip{
+       text-align: left;
+       padding: 16px;
+       background-color: lightsalmon;
+       border: 1px solid black;
+       width: auto;
+       opacity: 0;
+       color:black;
+       position: absolute;
+
+     }
+
+   </style>
+  </head>
+  <body>
+        <header>
+          <div class="logo">
+            <img src="./resources/img/logo.png" alt="">
+            <p>COVID-19 <br />STATS</p>
+          </div>
+          <nav>
+            <ul>
+              <li>
+                <a href="./index.html">Home</a>
+                <a href="#">WorldMap</a>
+              </li>
+            </ul>
+          </nav>
+        
+        </header>
+        <div>
+          <svg id="my_dataviz" width="1200" height="500"></svg>
+        </div>
+
+        <div id="tooltip">
+          Country: <span id="country"></span><br>
+          Total Cases: <span id="cases"></span><br>
+          Total Deaths: <span id="deaths"></span><br>
+          Total Recovered: <span id="recovered"></span><br>
+
+        </div>
+
+    
+    
+<script>
+
+// The svg
+var svg = d3.select("svg"),
+  width = +svg.attr("width"),
+  height = +svg.attr("height");
+
+// Map and projection
+var path = d3.geoPath();
+var projection = d3.geoMercator()
+  .scale(120)
+  .center([0,40])
+  .translate([width / 2, height / 2]);
+
+// Data and color scale
+// var data = d3.map();
+
+// var deathData = new Object();
+
+
+
+var colorScale = d3.scaleThreshold()
+  .domain([5000, 10000, 25000, 50000, 100000, 150000, 200000, 250000 ])
+  .range(d3.schemeReds[9]);
+
+
+
+  // Legend
+  var g = svg.append("g")
+      .attr("class", "legendThreshold")
+      .attr("transform", "translate(20,30)");
+  g.append("text")
+      .attr("class", "caption")
+      .attr("x", 0)
+      .attr("y", -6)
+      .text("Deaths");
+  var labels = ['<5K', '5K-10K', '10K-25K', '25K-50K', '50K-100K', '100K-150K', '150K-200K', '200K-250K', '>250K'];
+  var legend = d3.legendColor()
+      .labels(function (d) { return labels[d.i]; })
+      .shapePadding(4)
+      .scale(colorScale);
+  svg.select(".legendThreshold")
+      .call(legend);
+
+ 
+
+
+
+ function api_fetch () {
+    // (deathData );
+    return  fetch(
+      "https://corona.lmao.ninja/v2/countries", {
+        "accept":"application/json"
+      }
+    )
+      .then((res) => {
+        return res.json();
+      })
+      .then((data) => {
+       
+          // console.log("data", data);
+          var deathData = new Object();
+          data.forEach((entry) => {
+           
+            deathData[entry.countryInfo.iso3] = {
+              "deaths": +entry.deaths || 0,
+              "recovered": +entry.recovered || 0,
+
+              "cases": +entry.cases ||0,
+            };
+            //deathData[entry.countryInfo.iso3]['recovered'] = +entry.recovered; 
+          });
+          var kl = deathData;
+          console.log(kl);
+          return deathData;
+        });
+      }
+
+  // console.log("deathdata", deathData)
+    // api_fetch();
+
+
+  // function ready(error, topo) {
+  //   console.log(error);
+  //   console.log("topto", topo);
+
+
+  //   // Draw the map
+  //   svg.append("g")
+  //     .selectAll("path")
+  //     .data(topo.features)
+  //     .enter()
+  //     .append("path")        
+  //     .attr("d", d3.geoPath() // draw each country
+  //       .projection(projection)
+  //     )
+  //     .attr("fill", function (d) { // set the color of each country
+  //       // console.log("function bhitra pop data", popData);
+  //       // console.log("function bhitra death data", deathData["AFG"]);
+  //       // console.log("function bhitra death aaa", deathData);
+  //       //   //console.log("d bhaneko k ho?",d);
+  //       //   d.total = data.get(d.id) || 0;
+  //       //   d.deaths =aaa.get(d.id);
+  //       return colorScale(d.total);
+  //     });
+  // };
+
+
+  function formatNumber(num) {
+    return num.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,')
+  }
+
+
+// Load external data and boot
+api_fetch().then( (k) => {
+
+    d3.queue()
+      .defer(d3.json, "https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson")
+      .await((e, topo) => {
+      console.log(e);
+
+      console.log('k',k)
+      console.log('topo', topo);
+
+
+
+
+    // Draw the map
+     svg.append("g")
+      .selectAll(".path")
+      .data(topo.features)
+      .enter()
+      .append("path")
+      .attr("class", "path")
+      .attr("d", d3.geoPath() // draw each country
+      .projection(projection)
+      )
+      .attr("fill", function (d) { // set the color of each country
+        // // console.log(deathData);
+        if(k[d.id] !== undefined )   {
+
+          d.deaths = k[d.id]["deaths"];
+          return colorScale(d.deaths);
+        } else {
+          return colorScale(0);
+        }    
+      })
+      // .attr("deaths", function(d){
+      //     if(k[d.id] !== undefined)
+      //     return k[d.id]['deaths'];
+      //     else
+      //     return 0;
+      //   })
+      //   .attr("recovered", function(d){
+      //     if(k[d.id] !== undefined)
+      //     return k[d.id]['recovered'];
+      //     else 
+      //     return 0;
+      //   })
+      //   .attr("cases", function (d) {
+      //     if(k[d.id] !== undefined)
+      //     return k[d.id]['cases'];
+      //     else
+      //     return 0;
+      //   })
+        .on('mouseover', function (d){
+          console.log('mouse over', d.properties.name);
+          console.log('deaths', k[d.id] !== undefined ? formatNumber(k[d.id]['deaths'] ): 0 );
+
+          
+          d3.select('#country').text(d.properties.name);
+          d3.select('#cases').text(k[d.id] !== undefined ? formatNumber(k[d.id]['cases']) : 0);
+          d3.select('#deaths').text(k[d.id] !== undefined ? formatNumber(k[d.id]['deaths']): 0);
+          d3.select('#recovered').text(k[d.id] !== undefined ? formatNumber(k[d.id]['recovered']): 0);
+          d3.select('#tooltip')
+            .style('left', (d3.event.pageX + 20) + 'px')
+            .style('top', (d3.event.pageY - 80) + 'px')
+            .style('display', 'block')
+            .style('opacity', 0.8)
+        })
+        .on('mouseout', function(d){
+          d3.select('#tooltip')
+          .style('display', 'none');
+        });
+      })
+
+
+
+      
+    
+    });
+
+
+
+</script>
+
+  </body>
+</html>
